@@ -11,6 +11,7 @@
 - [bug] JAVA-1924: StatementWrapper setters should return the wrapping statement.
 - [new feature] JAVA-1532: Add Codec support for Java 8's LocalDateTime and ZoneId.
 - [improvement] JAVA-1786: Use Google code formatter.
+- [improvement] JAVA-1388: Add dynamic port discovery for system.peers\_v2.
 
 Merged from 3.5.x:
 
