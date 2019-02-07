@@ -24,9 +24,7 @@ import org.ops4j.pax.exam.options.CompositeOption;
 import org.ops4j.pax.exam.options.MavenArtifactProvisionOption;
 import org.ops4j.pax.exam.options.UrlProvisionOption;
 import org.ops4j.pax.exam.util.PathUtils;
-
 import java.util.List;
-
 import static com.datastax.driver.osgi.VersionProvider.projectVersion;
 import static org.ops4j.pax.exam.CoreOptions.*;
 
@@ -58,10 +56,7 @@ public class BundleOptions {
 
             @Override
             public Option[] getOptions() {
-                return options(
-                        systemProperty("cassandra.compression").value(ProtocolOptions.Compression.LZ4.name()),
-                        mavenBundle("net.jpountz.lz4", "lz4", "1.3.0")
-                );
+                return options(systemProperty("cassandra.compression").value(ProtocolOptions.Compression.LZ4.name()), mavenBundle("net.jpountz.lz4", "lz4", "1.3.0"));
             }
         };
     }
@@ -71,10 +66,7 @@ public class BundleOptions {
 
             @Override
             public Option[] getOptions() {
-                return options(
-                        systemProperty("cassandra.compression").value(ProtocolOptions.Compression.SNAPPY.name()),
-                        mavenBundle("org.xerial.snappy", "snappy-java", "1.1.2.6")
-                );
+                return options(systemProperty("cassandra.compression").value(ProtocolOptions.Compression.SNAPPY.name()), mavenBundle("org.xerial.snappy", "snappy-java", "1.1.2.6"));
             }
         };
     }
@@ -84,10 +76,7 @@ public class BundleOptions {
 
             @Override
             public Option[] getOptions() {
-                return options(
-                        systemProperty("cassandra.usePercentileSpeculativeExecutionPolicy").value("true"),
-                        mavenBundle("org.hdrhistogram", "HdrHistogram", "2.1.9")
-                );
+                return options(systemProperty("cassandra.usePercentileSpeculativeExecutionPolicy").value("true"), mavenBundle("org.hdrhistogram", "HdrHistogram", "2.1.9"));
             }
         };
     }
@@ -98,13 +87,7 @@ public class BundleOptions {
 
             @Override
             public Option[] getOptions() {
-                return options(
-                        mavenBundle("io.netty", "netty-buffer", nettyVersion),
-                        mavenBundle("io.netty", "netty-codec", nettyVersion),
-                        mavenBundle("io.netty", "netty-common", nettyVersion),
-                        mavenBundle("io.netty", "netty-handler", nettyVersion),
-                        mavenBundle("io.netty", "netty-transport", nettyVersion)
-                );
+                return options(mavenBundle("io.netty", "netty-buffer", nettyVersion), mavenBundle("io.netty", "netty-codec", nettyVersion), mavenBundle("io.netty", "netty-common", nettyVersion), mavenBundle("io.netty", "netty-handler", nettyVersion), mavenBundle("io.netty", "netty-transport", nettyVersion));
             }
         };
     }
@@ -118,21 +101,8 @@ public class BundleOptions {
 
             @Override
             public Option[] getOptions() {
-                List<Option> options = Lists.newArrayList(
-                        // Delegate javax.security.cert to the parent classloader.  javax.security.cert.X509Certificate is used in
-                        // io.netty.util.internal.EmptyArrays, but not directly by the driver.
-                        bootDelegationPackage("javax.security.cert"),
-                        systemProperty("cassandra.version").value(CCMBridge.getCassandraVersion()),
-                        systemProperty("cassandra.contactpoints").value(TestUtils.IP_PREFIX + 1),
-                        systemProperty("logback.configurationFile").value("file:" + PathUtils.getBaseDir() + "/src/test/resources/logback.xml"),
-                        mavenBundle("org.slf4j", "slf4j-api", "1.7.5"),
-                        mavenBundle("ch.qos.logback", "logback-classic", "1.1.3"),
-                        mavenBundle("ch.qos.logback", "logback-core", "1.1.3"),
-                        mavenBundle("io.dropwizard.metrics", "metrics-core", "3.1.2"),
-                        mavenBundle("org.testng", "testng", "6.8.8"),
-                        systemPackages("org.testng", "org.junit", "org.junit.runner", "org.junit.runner.manipulation",
-                                "org.junit.runner.notification", "com.jcabi.manifests")
-                );
+                List<Option> options = Lists.newArrayList(// io.netty.util.internal.EmptyArrays, but not directly by the driver.
+                bootDelegationPackage("javax.security.cert"), systemProperty("cassandra.version").value(CCMBridge.getGlobalCassandraVersion().toString()), systemProperty("cassandra.contactpoints").value(TestUtils.IP_PREFIX + 1), systemProperty("logback.configurationFile").value("file:" + PathUtils.getBaseDir() + "/src/test/resources/logback.xml"), mavenBundle("org.slf4j", "slf4j-api", "1.7.5"), mavenBundle("ch.qos.logback", "logback-classic", "1.1.3"), mavenBundle("ch.qos.logback", "logback-core", "1.1.3"), mavenBundle("io.dropwizard.metrics", "metrics-core", "3.1.2"), mavenBundle("org.testng", "testng", "6.8.8"), systemPackages("org.testng", "org.junit", "org.junit.runner", "org.junit.runner.manipulation", "org.junit.runner.notification", "com.jcabi.manifests"));
                 if (CCMBridge.isWindows()) {
                     // Workaround for Felix + Windows Server 2012.   Felix does not properly alias 'windowsserver2012'
                     // to 'win32', because of this some native libraries may fail to load.  To work around this, force
@@ -140,7 +110,6 @@ public class BundleOptions {
                     // See: https://issues.apache.org/jira/browse/FELIX-5184
                     options.add(systemProperty("os.name").value("win32"));
                 }
-
                 return options.toArray(new Option[options.size()]);
             }
         };

@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -38,7 +37,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import static com.datastax.driver.core.Assertions.assertThat;
 import static com.datastax.driver.core.CreateCCM.TestMode.PER_METHOD;
 import static com.datastax.driver.core.ScassandraCluster.SELECT_PEERS;
@@ -57,31 +55,22 @@ public class ControlConnectionTest extends CCMTestsSupport {
     @Test(groups = "short")
     @CCMConfig(numberOfNodes = 2)
     public void should_prevent_simultaneous_reconnection_attempts() throws InterruptedException {
-
         // Custom load balancing policy that counts the number of calls to newQueryPlan().
         // Since we don't open any session from our Cluster, only the control connection reattempts are calling this
         // method, therefore the invocation count is equal to the number of attempts.
         QueryPlanCountingPolicy loadBalancingPolicy = new QueryPlanCountingPolicy(Policies.defaultLoadBalancingPolicy());
         AtomicInteger reconnectionAttempts = loadBalancingPolicy.counter;
-
         // Custom reconnection policy with a very large delay (longer than the test duration), to make sure we count
         // only the first reconnection attempt of each reconnection handler.
         ReconnectionPolicy reconnectionPolicy = new ConstantReconnectionPolicy(60 * 1000);
-
         // We pass only the first host as contact point, so we know the control connection will be on this host
-        Cluster cluster = register(Cluster.builder()
-                .addContactPoints(getContactPoints().get(0))
-                .withPort(ccm().getBinaryPort())
-                .withReconnectionPolicy(reconnectionPolicy)
-                .withLoadBalancingPolicy(loadBalancingPolicy)
-                .build());
+        Cluster cluster = register(Cluster.builder().addContactPoints(getContactPoints().get(0)).withPort(ccm().getBinaryPort()).withReconnectionPolicy(reconnectionPolicy).withLoadBalancingPolicy(loadBalancingPolicy).build());
         cluster.init();
-
         // Kill the control connection host, there should be exactly one reconnection attempt
         ccm().stop(1);
-        TimeUnit.SECONDS.sleep(1); // Sleep for a while to make sure our final count is not the result of lucky timing
+        // Sleep for a while to make sure our final count is not the result of lucky timing
+        TimeUnit.SECONDS.sleep(1);
         assertThat(reconnectionAttempts.get()).isEqualTo(1);
-
         ccm().stop(2);
         TimeUnit.SECONDS.sleep(1);
         assertThat(reconnectionAttempts.get()).isEqualTo(2);
@@ -94,25 +83,17 @@ public class ControlConnectionTest extends CCMTestsSupport {
      * Therefore we use two different driver instances in this test.
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 2.1)
+    @CassandraVersion("2.1.0")
     public void should_parse_UDT_definitions_when_using_default_protocol_version() {
         // First driver instance: create UDT
-        Cluster cluster = register(Cluster.builder()
-                .addContactPoints(getContactPoints().get(0))
-                .withPort(ccm().getBinaryPort())
-                .build());
+        Cluster cluster = register(Cluster.builder().addContactPoints(getContactPoints().get(0)).withPort(ccm().getBinaryPort()).build());
         Session session = cluster.connect();
         session.execute("create keyspace ks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}");
         session.execute("create type ks.foo (i int)");
         cluster.close();
-
         // Second driver instance: read UDT definition
-        Cluster cluster2 = register(Cluster.builder()
-                .addContactPoints(getContactPoints().get(0))
-                .withPort(ccm().getBinaryPort())
-                .build());
+        Cluster cluster2 = register(Cluster.builder().addContactPoints(getContactPoints().get(0)).withPort(ccm().getBinaryPort()).build());
         UserType fooType = cluster2.getMetadata().getKeyspace("ks").getUserType("foo");
-
         assertThat(fooType.getFieldNames()).containsExactly("i");
     }
 
@@ -129,20 +110,13 @@ public class ControlConnectionTest extends CCMTestsSupport {
     @CCMConfig(numberOfNodes = 3)
     public void should_reestablish_if_control_node_decommissioned() throws InterruptedException {
         InetSocketAddress firstHost = ccm().addressOfNode(1);
-        Cluster cluster = register(Cluster.builder()
-                .addContactPoints(firstHost.getAddress())
-                .withPort(ccm().getBinaryPort())
-                .withQueryOptions(nonDebouncingQueryOptions())
-                .build());
+        Cluster cluster = register(Cluster.builder().addContactPoints(firstHost.getAddress()).withPort(ccm().getBinaryPort()).withQueryOptions(nonDebouncingQueryOptions()).build());
         cluster.init();
-
         // Ensure the control connection host is that of the first node.
         InetAddress controlHost = cluster.manager.controlConnection.connectedHost().getAddress();
         assertThat(controlHost).isEqualTo(firstHost.getAddress());
-
         // Decommission the node.
         ccm().decommission(1);
-
         // Ensure that the new control connection is not null and it's host is not equal to the decommissioned node.
         Host newHost = cluster.manager.controlConnection.connectedHost();
         assertThat(newHost).isNotNull();
@@ -169,7 +143,6 @@ public class ControlConnectionTest extends CCMTestsSupport {
         int iterations = 100;
         ScassandraCluster scassandras = ScassandraCluster.builder().withNodes(hostCount).build();
         scassandras.init();
-
         try {
             Collection<InetAddress> contactPoints = newArrayList();
             for (int i = 1; i <= hostCount; i++) {
@@ -177,12 +150,7 @@ public class ControlConnectionTest extends CCMTestsSupport {
             }
             final HashMultiset<InetAddress> occurrencesByHost = HashMultiset.create(hostCount);
             for (int i = 0; i < iterations; i++) {
-                Cluster cluster = Cluster.builder()
-                        .addContactPoints(contactPoints)
-                        .withPort(scassandras.getBinaryPort())
-                        .withNettyOptions(nonQuietClusterCloseOptions)
-                        .build();
-
+                Cluster cluster = Cluster.builder().addContactPoints(contactPoints).withPort(scassandras.getBinaryPort()).withNettyOptions(nonQuietClusterCloseOptions).build();
                 try {
                     cluster.init();
                     occurrencesByHost.add(cluster.manager.controlConnection.connectedHost().getAddress());
@@ -192,6 +160,7 @@ public class ControlConnectionTest extends CCMTestsSupport {
             }
             if (logger.isDebugEnabled()) {
                 Map<InetAddress, Integer> hostCounts = Maps.toMap(occurrencesByHost.elementSet(), new Function<InetAddress, Integer>() {
+
                     @Override
                     public Integer apply(InetAddress input) {
                         return occurrencesByHost.count(input);
@@ -201,11 +170,7 @@ public class ControlConnectionTest extends CCMTestsSupport {
             }
             // There is an incredibly low chance that a host may not be used based on randomness.
             // This probability is very low however.
-            assertThat(occurrencesByHost.elementSet().size())
-                    .as("Not all hosts were used as contact points.  There is a very small chance"
-                            + " of this happening based on randomness, investigate whether or not this"
-                            + " is a bug.")
-                    .isEqualTo(hostCount);
+            assertThat(occurrencesByHost.elementSet().size()).as("Not all hosts were used as contact points.  There is a very small chance" + " of this happening based on randomness, investigate whether or not this" + " is a bug.").isEqualTo(hostCount);
         } finally {
             scassandras.stop();
         }
@@ -213,13 +178,7 @@ public class ControlConnectionTest extends CCMTestsSupport {
 
     @DataProvider
     public static Object[][] disallowedNullColumnsInPeerData() {
-        return new Object[][]{
-                {"host_id"},
-                {"data_center"},
-                {"rack"},
-                {"tokens"},
-                {"host_id,data_center,rack,tokens"}
-        };
+        return new Object[][] { { "host_id" }, { "data_center" }, { "rack" }, { "tokens" }, { "host_id,data_center,rack,tokens" } };
     }
 
     /**
@@ -252,28 +211,18 @@ public class ControlConnectionTest extends CCMTestsSupport {
 
     static void run_with_null_peer_info(String columns, boolean expectPeer2) {
         // given: A cluster with peer 2 having a null rack.
-        ScassandraCluster.ScassandraClusterBuilder builder = ScassandraCluster.builder()
-                .withNodes(3);
-
+        ScassandraCluster.ScassandraClusterBuilder builder = ScassandraCluster.builder().withNodes(3);
         StringBuilder columnDataBuilder = new StringBuilder();
         for (String column : columns.split(",")) {
             builder = builder.forcePeerInfo(1, 2, column, null);
             columnDataBuilder.append(String.format("%s=null, ", column));
         }
-
         String columnData = columnDataBuilder.toString();
         if (columnData.endsWith(", ")) {
             columnData = columnData.substring(0, columnData.length() - 2);
         }
-
         ScassandraCluster scassandraCluster = builder.build();
-
-        Cluster cluster = Cluster.builder()
-                .addContactPoints(scassandraCluster.address(1).getAddress())
-                .withPort(scassandraCluster.getBinaryPort())
-                .withNettyOptions(nonQuietClusterCloseOptions)
-                .build();
-
+        Cluster cluster = Cluster.builder().addContactPoints(scassandraCluster.address(1).getAddress()).withPort(scassandraCluster.getBinaryPort()).withNettyOptions(nonQuietClusterCloseOptions).build();
         // Capture logs to ensure appropriate warnings are logged.
         org.apache.log4j.Logger cLogger = org.apache.log4j.Logger.getLogger("com.datastax.driver.core");
         Level originalLevel = cLogger.getLevel();
@@ -282,33 +231,20 @@ public class ControlConnectionTest extends CCMTestsSupport {
         }
         MemoryAppender logs = new MemoryAppender();
         cLogger.addAppender(logs);
-
         try {
             scassandraCluster.init();
-
             // when: Initializing a cluster instance and grabbing metadata.
             cluster.init();
-
             InetAddress node2Address = scassandraCluster.address(2).getAddress();
-            String expectedError = String.format("Found invalid row in system.peers: [peer=%s, %s]. " +
-                    "This is likely a gossip or snitch issue, this host will be ignored.", node2Address, columnData);
+            String expectedError = String.format("Found invalid row in system.peers: [peer=%s, %s]. " + "This is likely a gossip or snitch issue, this host will be ignored.", node2Address, columnData);
             String log = logs.get();
             // then: A peer with a null rack should not show up in host metadata, unless allowed via system property.
             if (expectPeer2) {
-                assertThat(cluster.getMetadata().getAllHosts())
-                        .hasSize(3)
-                        .extractingResultOf("getAddress")
-                        .contains(node2Address);
-
+                assertThat(cluster.getMetadata().getAllHosts()).hasSize(3).extractingResultOf("getAddress").contains(node2Address);
                 assertThat(log).doesNotContain(expectedError);
             } else {
-                assertThat(cluster.getMetadata().getAllHosts())
-                        .hasSize(2)
-                        .extractingResultOf("getAddress")
-                        .doesNotContain(node2Address);
-
-                assertThat(log)
-                        .containsOnlyOnce(expectedError);
+                assertThat(cluster.getMetadata().getAllHosts()).hasSize(2).extractingResultOf("getAddress").doesNotContain(node2Address);
+                assertThat(log).containsOnlyOnce(expectedError);
             }
         } finally {
             cLogger.removeAppender(logs);
@@ -336,77 +272,36 @@ public class ControlConnectionTest extends CCMTestsSupport {
     public void should_fetch_whole_peers_table_if_broadcast_address_changed() throws UnknownHostException {
         ScassandraCluster scassandras = ScassandraCluster.builder().withNodes(2).build();
         scassandras.init();
-
         InetSocketAddress node2RpcAddress = scassandras.address(2);
-
-        Cluster cluster = Cluster.builder()
-                .addContactPoints(scassandras.address(1).getAddress())
-                .withPort(scassandras.getBinaryPort())
-                .withNettyOptions(nonQuietClusterCloseOptions)
-                .build();
-
+        Cluster cluster = Cluster.builder().addContactPoints(scassandras.address(1).getAddress()).withPort(scassandras.getBinaryPort()).withNettyOptions(nonQuietClusterCloseOptions).build();
         try {
-
             cluster.init();
-
             Host host2 = cluster.getMetadata().getHost(node2RpcAddress);
             assertThat(host2).isNotNull();
-
             InetAddress node2OldBroadcastAddress = host2.getBroadcastAddress();
             InetAddress node2NewBroadcastAddress = InetAddress.getByName("1.2.3.4");
-
             // host 2 has the old broadcast_address (which is identical to its rpc_broadcast_address)
-            assertThat(host2.getAddress())
-                    .isEqualTo(node2OldBroadcastAddress);
-
+            assertThat(host2.getAddress()).isEqualTo(node2OldBroadcastAddress);
             // simulate a change in host 2 public IP
-            Map<String, ?> rows = ImmutableMap.<String, Object>builder()
-                    .put("peer", node2NewBroadcastAddress) // new broadcast address for host 2
-                    .put("rpc_address", host2.getAddress()) // rpc_broadcast_address remains unchanged
-                    .put("host_id", UUID.randomUUID())
-                    .put("data_center", datacenter(1))
-                    .put("rack", "rack1")
-                    .put("release_version", "2.1.8")
-                    .put("tokens", ImmutableSet.of(Long.toString(scassandras.getTokensForDC(1).get(1))))
-                    .build();
-
+            Map<String, ?> rows = ImmutableMap.<String, Object>builder().put("peer", // new broadcast address for host 2
+            node2NewBroadcastAddress).put("rpc_address", // rpc_broadcast_address remains unchanged
+            host2.getAddress()).put("host_id", UUID.randomUUID()).put("data_center", datacenter(1)).put("rack", "rack1").put("release_version", "2.1.8").put("tokens", ImmutableSet.of(Long.toString(scassandras.getTokensForDC(1).get(1)))).build();
             scassandras.node(1).primingClient().clearAllPrimes();
-
             // the driver will attempt to locate host2 in system.peers by its old broadcast address, and that will fail
-            scassandras.node(1).primingClient().prime(PrimingRequest.queryBuilder()
-                    .withQuery("SELECT * FROM system.peers WHERE peer='" + node2OldBroadcastAddress + "'")
-                    .withThen(then()
-                            .withColumnTypes(SELECT_PEERS)
-                            .build())
-                    .build());
-
+            scassandras.node(1).primingClient().prime(PrimingRequest.queryBuilder().withQuery("SELECT * FROM system.peers WHERE peer='" + node2OldBroadcastAddress + "'").withThen(then().withColumnTypes(SELECT_PEERS).build()).build());
             // the driver will then attempt to fetch the whole system.peers
-            scassandras.node(1).primingClient().prime(PrimingRequest.queryBuilder()
-                    .withQuery("SELECT * FROM system.peers")
-                    .withThen(then()
-                            .withColumnTypes(SELECT_PEERS)
-                            .withRows(rows)
-                            .build())
-                    .build());
-
+            scassandras.node(1).primingClient().prime(PrimingRequest.queryBuilder().withQuery("SELECT * FROM system.peers").withThen(then().withColumnTypes(SELECT_PEERS).withRows(rows).build()).build());
             assertThat(cluster.manager.controlConnection.refreshNodeInfo(host2)).isTrue();
-
             host2 = cluster.getMetadata().getHost(node2RpcAddress);
-
             // host2 should now have a new broadcast address
             assertThat(host2).isNotNull();
-            assertThat(host2.getBroadcastAddress())
-                    .isEqualTo(node2NewBroadcastAddress);
-
+            assertThat(host2.getBroadcastAddress()).isEqualTo(node2NewBroadcastAddress);
             // host 2 should keep its old rpc broadcast address
-            assertThat(host2.getSocketAddress())
-                    .isEqualTo(node2RpcAddress);
-
+            assertThat(host2.getSocketAddress()).isEqualTo(node2RpcAddress);
         } finally {
             cluster.close();
             scassandras.stop();
         }
-
     }
 
     static class QueryPlanCountingPolicy extends DelegatingLoadBalancingPolicy {

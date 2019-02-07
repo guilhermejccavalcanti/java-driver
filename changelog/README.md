@@ -1,8 +1,12 @@
 ## Changelog
 
+<<<<<<< HEAD
 ### 3.1.4
 
 Merged from 3.0.x branch:
+=======
+### 3.0.7
+>>>>>>> a7044d5a5
 
 - [bug] JAVA-1371: Reintroduce connection pool timeout.
 - [bug] JAVA-1313: Copy SerialConsistencyLevel to PreparedStatement.

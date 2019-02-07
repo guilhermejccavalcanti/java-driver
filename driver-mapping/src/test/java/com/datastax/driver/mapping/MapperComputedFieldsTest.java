@@ -22,7 +22,6 @@ import com.datastax.driver.mapping.annotations.*;
 import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import static com.datastax.driver.core.Assertions.assertThat;
 import static com.datastax.driver.core.ProtocolVersion.V1;
 
@@ -35,13 +34,13 @@ public class MapperComputedFieldsTest extends CCMTestsSupport {
 
     @Override
     public void onTestContextInitialized() {
-        execute(
-                "CREATE TABLE user (login text primary key, name text)",
-                "INSERT INTO user (login, name) VALUES ('testlogin', 'test name')");
+        execute("CREATE TABLE user (login text primary key, name text)", "INSERT INTO user (login, name) VALUES ('testlogin', 'test name')");
     }
 
     ProtocolVersion protocolVersion;
+
     MappingManager mappingManager;
+
     Mapper<User> userMapper;
 
     @BeforeMethod(groups = "short")
@@ -56,63 +55,57 @@ public class MapperComputedFieldsTest extends CCMTestsSupport {
     void should_get_unsupported_operation_exception_on_v1() {
         if (protocolVersion.compareTo(V1) > 0)
             throw new SkipException("Skipped when protocol version > V1");
-
         userMapper = mappingManager.mapper(User.class);
     }
 
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     void should_save_and_get_entity_with_computed_fields() {
         long writeTime = System.currentTimeMillis() * 1000;
         User newUser = new User("testlogin2", "blah");
-        newUser.setWriteTime(1); // will be ignored
-
+        // will be ignored
+        newUser.setWriteTime(1);
         userMapper.save(newUser);
-
         User fetched = userMapper.get("testlogin2");
         assertThat(fetched.getLogin()).isEqualTo("testlogin2");
         assertThat(fetched.getName()).isEqualTo("blah");
         // write time should be within 30 seconds.
         assertThat(fetched.getWriteTime()).isGreaterThanOrEqualTo(writeTime).isLessThan(writeTime + 30000000L);
-        assertThat(fetched.getTtl()).isNull(); // TTL should be null since it was not set.
-
+        // TTL should be null since it was not set.
+        assertThat(fetched.getTtl()).isNull();
         // Overwrite with TTL
         session().execute("insert into user (login, name) values ('testlogin2', 'blah') using TTL 600");
         fetched = userMapper.get("testlogin2");
         assertThat(fetched.getWriteTime()).isGreaterThanOrEqualTo(writeTime).isLessThan(writeTime + 30000000L);
-        assertThat(fetched.getTtl()).isBetween(570, 600); // TTL should be within 30 secs.
-
+        // TTL should be within 30 secs.
+        assertThat(fetched.getTtl()).isBetween(570, 600);
         // cleanup
         userMapper.delete(newUser);
     }
 
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     void should_add_aliases_for_fields_in_select_queries() {
         BoundStatement bs = (BoundStatement) userMapper.getQuery("test");
-        assertThat(bs.preparedStatement().getQueryString())
-                .contains("SELECT", "login AS col", "name AS col", "writetime(\"name\") AS col");
+        assertThat(bs.preparedStatement().getQueryString()).contains("SELECT", "login AS col", "name AS col", "writetime(\"name\") AS col");
     }
 
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void should_map_aliased_resultset_to_objects() {
         Statement getQuery = userMapper.getQuery("testlogin");
         getQuery.setConsistencyLevel(ConsistencyLevel.QUORUM);
         ResultSet rs = session().execute(getQuery);
-
         Result<User> result = userMapper.map(rs);
         User user = result.one();
-
         assertThat(user.getLogin()).isEqualTo("testlogin");
     }
 
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     void should_map_unaliased_resultset_to_objects() {
         UserAccessor userAccessor = mappingManager.createAccessor(UserAccessor.class);
         ResultSet rs = userAccessor.all();
-
         Result<User> result = userMapper.map(rs);
         User user = result.one();
         assertThat(user.getLogin()).isEqualTo("testlogin");
@@ -120,23 +113,24 @@ public class MapperComputedFieldsTest extends CCMTestsSupport {
     }
 
     @Test(groups = "short", expectedExceptions = CodecNotFoundException.class)
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     void should_fail_if_computed_field_is_not_right_type() {
         Mapper<User_WrongComputedType> mapper = mappingManager.mapper(User_WrongComputedType.class);
-
         User_WrongComputedType user = mapper.get("testlogin");
     }
 
     @Test(groups = "short", expectedExceptions = IllegalArgumentException.class)
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     void should_fail_if_computed_field_marked_with_column_annotation() {
         mappingManager.mapper(User_WrongAnnotationForComputed.class);
     }
 
     @Table(name = "user")
     public static class User {
+
         @PartitionKey
         private String login;
+
         private String name;
 
         public User() {
@@ -190,14 +184,17 @@ public class MapperComputedFieldsTest extends CCMTestsSupport {
 
     @Accessor
     interface UserAccessor {
+
         @Query("select * from user")
         ResultSet all();
     }
 
     @Table(name = "user")
     public static class User_WrongComputedType {
+
         @PartitionKey
         private String login;
+
         private String name;
 
         @Computed(value = "writetime(name)")
@@ -230,8 +227,10 @@ public class MapperComputedFieldsTest extends CCMTestsSupport {
 
     @Table(name = "user")
     public static class User_WrongAnnotationForComputed {
+
         @PartitionKey
         private String login;
+
         private String name;
 
         @Column(name = "writetime(v)")

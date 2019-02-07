@@ -19,7 +19,11 @@
     <parent>
         <artifactId>cassandra-driver-parent</artifactId>
         <groupId>com.datastax.cassandra</groupId>
+<<<<<<< HEAD
         <version>3.1.5-SNAPSHOT</version>
+=======
+        <version>3.0.8-SNAPSHOT</version>
+>>>>>>> a7044d5a5
     </parent>
     <modelVersion>4.0.0</modelVersion>
 

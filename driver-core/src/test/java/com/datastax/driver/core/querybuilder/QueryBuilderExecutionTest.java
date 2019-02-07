@@ -19,12 +19,10 @@ import com.datastax.driver.core.*;
 import com.datastax.driver.core.utils.CassandraVersion;
 import org.assertj.core.api.iterable.Extractor;
 import org.testng.annotations.Test;
-
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import static com.datastax.driver.core.Assertions.assertThat;
 import static com.datastax.driver.core.ResultSetAssert.row;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.*;
@@ -35,21 +33,12 @@ import static org.testng.Assert.*;
 public class QueryBuilderExecutionTest extends CCMTestsSupport {
 
     private static final String TABLE1 = "test1";
+
     private static final String TABLE2 = "test2";
 
     @Override
     public void onTestContextInitialized() {
-        execute(
-                String.format("CREATE TABLE %s (k text PRIMARY KEY, t text, i int, f float)", TABLE1),
-                String.format("CREATE TABLE %s (k text, t text, i int, f float, PRIMARY KEY (k, t))", TABLE2),
-                "CREATE TABLE dateTest (t timestamp PRIMARY KEY)",
-                "CREATE TABLE test_coll (k int PRIMARY KEY, a list<int>, b map<int,text>, c set<text>)",
-                "CREATE TABLE test_ppl (a int, b int, c int, PRIMARY KEY (a, b))",
-                insertInto(TABLE2).value("k", "cast_t").value("t", "a").value("i", 1).value("f", 1.1).toString(),
-                insertInto(TABLE2).value("k", "cast_t").value("t", "b").value("i", 2).value("f", 2.5).toString(),
-                insertInto(TABLE2).value("k", "cast_t").value("t", "c").value("i", 3).value("f", 3.7).toString(),
-                insertInto(TABLE2).value("k", "cast_t").value("t", "d").value("i", 4).value("f", 5.0).toString()
-        );
+        execute(String.format("CREATE TABLE %s (k text PRIMARY KEY, t text, i int, f float)", TABLE1), String.format("CREATE TABLE %s (k text, t text, i int, f float, PRIMARY KEY (k, t))", TABLE2), "CREATE TABLE dateTest (t timestamp PRIMARY KEY)", "CREATE TABLE test_coll (k int PRIMARY KEY, a list<int>, b map<int,text>, c set<text>)", "CREATE TABLE test_ppl (a int, b int, c int, PRIMARY KEY (a, b))", insertInto(TABLE2).value("k", "cast_t").value("t", "a").value("i", 1).value("f", 1.1).toString(), insertInto(TABLE2).value("k", "cast_t").value("t", "b").value("i", 2).value("f", 2.5).toString(), insertInto(TABLE2).value("k", "cast_t").value("t", "c").value("i", 3).value("f", 3.7).toString(), insertInto(TABLE2).value("k", "cast_t").value("t", "d").value("i", 4).value("f", 5.0).toString());
         // for per partition limit tests
         for (int i = 0; i < 5; i++) {
             for (int j = 0; j < 5; j++) {
@@ -60,20 +49,15 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
 
     @Test(groups = "short")
     public void executeTest() throws Exception {
-
         session().execute(insertInto(TABLE1).value("k", "k1").value("t", "This is a test").value("i", 3).value("f", 0.42));
         session().execute(update(TABLE1).with(set("t", "Another test")).where(eq("k", "k2")));
-
         List<Row> rows = session().execute(select().from(TABLE1).where(in("k", "k1", "k2"))).all();
-
         assertEquals(2, rows.size());
-
         Row r1 = rows.get(0);
         assertEquals("k1", r1.getString("k"));
         assertEquals("This is a test", r1.getString("t"));
         assertEquals(3, r1.getInt("i"));
         assertFalse(r1.isNull("f"));
-
         Row r2 = rows.get(1);
         assertEquals("k2", r2.getString("k"));
         assertEquals("Another test", r2.getString("t"));
@@ -83,14 +67,11 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
 
     @Test(groups = "short")
     public void dateHandlingTest() throws Exception {
-
         Date d = new Date();
         session().execute(insertInto("dateTest").value("t", d));
         String query = select().from("dateTest").where(eq(token("t"), fcall("token", d))).toString();
         List<Row> rows = session().execute(query).all();
-
         assertEquals(1, rows.size());
-
         Row r1 = rows.get(0);
         assertEquals(d, r1.getTimestamp("t"));
     }
@@ -101,7 +82,6 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
         String query = "INSERT INTO foo (a,b,c,d) VALUES ('foo','bar',?,0);";
         BuiltStatement stmt = insertInto("foo").value("a", "foo").value("b", "bar").value("c", bindMarker()).value("d", 0);
         assertEquals(stmt.getQueryString(), query);
-
         query = "INSERT INTO foo (a,b,c,d) VALUES ('foo','bar',:c,0);";
         stmt = insertInto("foo").value("a", "foo").value("b", "bar").value("c", bindMarker("c")).value("d", 0);
         assertEquals(stmt.getQueryString(), query);
@@ -112,14 +92,11 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
         SimpleStatement simple = new SimpleStatement("INSERT INTO " + TABLE1 + " (k, t) VALUES ('batchTest1', 'val1')");
         RegularStatement built = insertInto(TABLE1).value("k", "batchTest2").value("t", "val2");
         session().execute(batch().add(simple).add(built));
-
         List<Row> rows = session().execute(select().from(TABLE1).where(in("k", "batchTest1", "batchTest2"))).all();
         assertEquals(2, rows.size());
-
         Row r1 = rows.get(0);
         assertEquals("batchTest1", r1.getString("k"));
         assertEquals("val1", r1.getString("t"));
-
         Row r2 = rows.get(1);
         assertEquals("batchTest2", r2.getString("k"));
         assertEquals("val2", r2.getString("t"));
@@ -213,7 +190,7 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
      * @since 3.0.1
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 3.2)
+    @CassandraVersion("3.2")
     public void should_support_cast_function_on_column() {
         //when
         ResultSet r = session().execute(select().cast("f", DataType.cint()).as("fint").column("i").from(TABLE2).where(eq("k", "cast_t")));
@@ -223,7 +200,7 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
             Integer i = row.getInt("i");
             assertThat(row.getColumnDefinitions().getType("fint")).isEqualTo(DataType.cint());
             Integer f = row.getInt("fint");
-            switch (i) {
+            switch(i) {
                 case 1:
                     assertThat(f).isEqualTo(1);
                     break;
@@ -256,7 +233,7 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
      * @since 3.0.1
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 3.2)
+    @CassandraVersion("3.2")
     public void should_support_fcall_on_cast_column() {
         //when
         ResultSet ar = session().execute(select().fcall("avg", cast(column("i"), DataType.cfloat())).as("iavg").from(TABLE2).where(eq("k", "cast_t")));
@@ -281,27 +258,22 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
      * @since 3.0.1
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 3.6)
+    @CassandraVersion("3.6")
     public void should_retrieve_using_like_operator_on_table_with_sasi_index() {
         //given
         String table = "s_table";
-        session().execute(createTable(table).addPartitionKey("k", DataType.text())
-                .addClusteringColumn("cc", DataType.cint())
-                .addColumn("n", DataType.text())
-        );
-        session().execute(String.format(
-                "CREATE CUSTOM INDEX on %s (n) USING 'org.apache.cassandra.index.sasi.SASIIndex';", table));
+        session().execute(createTable(table).addPartitionKey("k", DataType.text()).addClusteringColumn("cc", DataType.cint()).addColumn("n", DataType.text()));
+        session().execute(String.format("CREATE CUSTOM INDEX on %s (n) USING 'org.apache.cassandra.index.sasi.SASIIndex';", table));
         session().execute(insertInto(table).value("k", "a").value("cc", 0).value("n", "Hello World"));
         session().execute(insertInto(table).value("k", "a").value("cc", 1).value("n", "Goodbye World"));
         session().execute(insertInto(table).value("k", "b").value("cc", 2).value("n", "Hello Moon"));
-
         //when
         BuiltStatement query = select("n").from(table).where(like("n", "Hello%"));
         ResultSet r = session().execute(query);
-
         //then
         assertThat(r.getAvailableWithoutFetching()).isEqualTo(2);
         assertThat(r.all()).extracting(new Extractor<Row, String>() {
+
             @Override
             public String extract(Row input) {
                 return input.getString("n");
@@ -323,66 +295,21 @@ public class QueryBuilderExecutionTest extends CCMTestsSupport {
     @CassandraVersion(major = 3.6, description = "Support for PER PARTITION LIMIT was added to C* 3.6 (CASSANDRA-7017)")
     @Test(groups = "short")
     public void should_support_per_partition_limit() throws Exception {
-        assertThat(session().execute(select().all().from("test_ppl").perPartitionLimit(2)))
-                .contains(
-                        row(0, 0, 0),
-                        row(0, 1, 1),
-                        row(1, 0, 0),
-                        row(1, 1, 1),
-                        row(2, 0, 0),
-                        row(2, 1, 1),
-                        row(3, 0, 0),
-                        row(3, 1, 1),
-                        row(4, 0, 0),
-                        row(4, 1, 1));
+        assertThat(session().execute(select().all().from("test_ppl").perPartitionLimit(2))).contains(row(0, 0, 0), row(0, 1, 1), row(1, 0, 0), row(1, 1, 1), row(2, 0, 0), row(2, 1, 1), row(3, 0, 0), row(3, 1, 1), row(4, 0, 0), row(4, 1, 1));
         // Combined Per Partition and "global" limit
         assertThat(session().execute(select().all().from("test_ppl").perPartitionLimit(2).limit(6))).hasSize(6);
         // odd amount of results
-        assertThat(session().execute(select().all().from("test_ppl").perPartitionLimit(2).limit(5)))
-                .contains(
-                        row(0, 0, 0),
-                        row(0, 1, 1),
-                        row(1, 0, 0),
-                        row(1, 1, 1),
-                        row(2, 0, 0));
+        assertThat(session().execute(select().all().from("test_ppl").perPartitionLimit(2).limit(5))).contains(row(0, 0, 0), row(0, 1, 1), row(1, 0, 0), row(1, 1, 1), row(2, 0, 0));
         // IN query
-        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 2, 3)).perPartitionLimit(2)))
-                .contains(
-                        row(2, 0, 0),
-                        row(2, 1, 1),
-                        row(3, 0, 0),
-                        row(3, 1, 1));
-        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 2, 3))
-                .perPartitionLimit(bindMarker()).limit(3).getQueryString(), 2))
-                .hasSize(3);
-        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 1, 2, 3))
-                .perPartitionLimit(bindMarker()).limit(3).getQueryString(), 2))
-                .hasSize(3);
+        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 2, 3)).perPartitionLimit(2))).contains(row(2, 0, 0), row(2, 1, 1), row(3, 0, 0), row(3, 1, 1));
+        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 2, 3)).perPartitionLimit(bindMarker()).limit(3).getQueryString(), 2)).hasSize(3);
+        assertThat(session().execute(select().all().from("test_ppl").where(in("a", 1, 2, 3)).perPartitionLimit(bindMarker()).limit(3).getQueryString(), 2)).hasSize(3);
         // with restricted partition key
-        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker()))
-                .perPartitionLimit(bindMarker()).getQueryString(), 2, 3))
-                .containsExactly(
-                        row(2, 0, 0),
-                        row(2, 1, 1),
-                        row(2, 2, 2));
+        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker())).perPartitionLimit(bindMarker()).getQueryString(), 2, 3)).containsExactly(row(2, 0, 0), row(2, 1, 1), row(2, 2, 2));
         // with ordering
-        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker()))
-                .orderBy(desc("b")).perPartitionLimit(bindMarker()).getQueryString(), 2, 3))
-                .containsExactly(
-                        row(2, 4, 4),
-                        row(2, 3, 3),
-                        row(2, 2, 2));
+        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker())).orderBy(desc("b")).perPartitionLimit(bindMarker()).getQueryString(), 2, 3)).containsExactly(row(2, 4, 4), row(2, 3, 3), row(2, 2, 2));
         // with filtering
-        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker()))
-                .and(gt("b", bindMarker())).perPartitionLimit(bindMarker()).allowFiltering().getQueryString(), 2, 0, 2))
-                .containsExactly(
-                        row(2, 1, 1),
-                        row(2, 2, 2));
-        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker()))
-                .and(gt("b", bindMarker())).orderBy(desc("b")).perPartitionLimit(bindMarker()).allowFiltering().getQueryString(), 2, 2, 2))
-                .containsExactly(
-                        row(2, 4, 4),
-                        row(2, 3, 3));
+        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker())).and(gt("b", bindMarker())).perPartitionLimit(bindMarker()).allowFiltering().getQueryString(), 2, 0, 2)).containsExactly(row(2, 1, 1), row(2, 2, 2));
+        assertThat(session().execute(select().all().from("test_ppl").where(eq("a", bindMarker())).and(gt("b", bindMarker())).orderBy(desc("b")).perPartitionLimit(bindMarker()).allowFiltering().getQueryString(), 2, 2, 2)).containsExactly(row(2, 4, 4), row(2, 3, 3));
     }
-
 }

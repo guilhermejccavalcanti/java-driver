@@ -22,13 +22,11 @@ import com.datastax.driver.mapping.annotations.*;
 import com.google.common.base.Objects;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.testng.annotations.Test;
-
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -36,15 +34,14 @@ import static org.testng.Assert.assertTrue;
 /**
  * Basic tests for the mapping module.
  */
-@SuppressWarnings({"unused", "WeakerAccess"})
+@SuppressWarnings({ "unused", "WeakerAccess" })
 public class MapperTest extends CCMTestsSupport {
 
     @Override
     public void onTestContextInitialized() {
         // We'll allow to generate those create statement from the annotated entities later, but it's currently
         // a TODO
-        execute("CREATE TABLE users (user_id uuid PRIMARY KEY, name text, email text, year int, gender text)",
-                "CREATE TABLE posts (user_id uuid, post_id timeuuid, title text, content text, device inet, tags set<text>, PRIMARY KEY(user_id, post_id))");
+        execute("CREATE TABLE users (user_id uuid PRIMARY KEY, name text, email text, year int, gender text)", "CREATE TABLE posts (user_id uuid, post_id timeuuid, title text, content text, device inet, tags set<text>, PRIMARY KEY(user_id, post_id))");
     }
 
     /*
@@ -58,9 +55,7 @@ public class MapperTest extends CCMTestsSupport {
      *
      * And the next step will be to support UDT (which should be relatively simple).
      */
-    @Table(name = "users",
-            readConsistency = "QUORUM",
-            writeConsistency = "QUORUM")
+    @Table(name = "users", readConsistency = "QUORUM", writeConsistency = "QUORUM")
     public static class User {
 
         // Dummy constant to test that static fields are properly ignored
@@ -71,8 +66,11 @@ public class MapperTest extends CCMTestsSupport {
         private UUID userId;
 
         private String name;
+
         private String email;
-        @Column // not strictly required, but we want to check that the annotation works without a name
+
+        // not strictly required, but we want to check that the annotation works without a name
+        @Column
         private int year;
 
         public User() {
@@ -120,12 +118,8 @@ public class MapperTest extends CCMTestsSupport {
         public boolean equals(Object other) {
             if (other == null || other.getClass() != this.getClass())
                 return false;
-
             User that = (User) other;
-            return Objects.equal(userId, that.userId)
-                    && Objects.equal(name, that.name)
-                    && Objects.equal(email, that.email)
-                    && Objects.equal(year, that.year);
+            return Objects.equal(userId, that.userId) && Objects.equal(name, that.name) && Objects.equal(email, that.email) && Objects.equal(year, that.year);
         }
 
         @Override
@@ -145,7 +139,9 @@ public class MapperTest extends CCMTestsSupport {
     public static class Post {
 
         private String title;
+
         private String content;
+
         private InetAddress device;
 
         @ClusteringColumn
@@ -155,7 +151,6 @@ public class MapperTest extends CCMTestsSupport {
         @PartitionKey
         @Column(name = "user_id")
         private UUID userId;
-
 
         private Set<String> tags;
 
@@ -220,14 +215,8 @@ public class MapperTest extends CCMTestsSupport {
         public boolean equals(Object other) {
             if (other == null || other.getClass() != this.getClass())
                 return false;
-
             Post that = (Post) other;
-            return Objects.equal(userId, that.userId)
-                    && Objects.equal(postId, that.postId)
-                    && Objects.equal(title, that.title)
-                    && Objects.equal(content, that.content)
-                    && Objects.equal(device, that.device)
-                    && Objects.equal(tags, that.tags);
+            return Objects.equal(userId, that.userId) && Objects.equal(postId, that.postId) && Objects.equal(title, that.title) && Objects.equal(content, that.content) && Objects.equal(device, that.device) && Objects.equal(tags, that.tags);
         }
 
         @Override
@@ -251,8 +240,8 @@ public class MapperTest extends CCMTestsSupport {
      */
     @Accessor
     public interface PostAccessor {
-        // Note that for implementation reasons, this *needs* to be an interface.
 
+        // Note that for implementation reasons, this *needs* to be an interface.
         // The @Param below is because you can't get the name of parameters of methods
         // by reflection (you can only have their types), so you have to annotate them
         // if you want to give them proper names in the query. That being said, if you
@@ -260,8 +249,7 @@ public class MapperTest extends CCMTestsSupport {
         // harcoded arg0, arg1, .... A big annoying, and apparently Java 8 will fix that
         // somehow, but well, not a huge deal.
         @Query("SELECT * FROM posts WHERE user_id=:userId AND post_id=:postId")
-        Post getOne(@Param("userId") UUID userId,
-                    @Param("postId") UUID postId);
+        Post getOne(@Param("userId") UUID userId, @Param("postId") UUID postId);
 
         // Note that the following method will be asynchronous (it will use executeAsync
         // underneath) because it's return type is a ListenableFuture. Similarly, we know
@@ -297,11 +285,9 @@ public class MapperTest extends CCMTestsSupport {
         // don't use the Accessor stuff since the queries we use are directly
         // supported by the Mapper object.
         Mapper<User> m = new MappingManager(session()).mapper(User.class);
-
         User u1 = new User("Paul", "paul@yahoo.com");
         u1.setYear(2014);
         m.save(u1);
-
         // Do note that m.get() takes the primary key of what we want to fetch
         // in argument, it doesn't not take a User object because we don't proxy
         // objects `a la' SpringData/Hibernate. The reason for not doing that
@@ -310,98 +296,75 @@ public class MapperTest extends CCMTestsSupport {
     }
 
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void testDynamicEntity() throws Exception {
         MappingManager manager = new MappingManager(session());
-
         Mapper<Post> m = manager.mapper(Post.class);
-
         User u1 = new User("Paul", "paul@gmail.com");
         Post p1 = new Post(u1, "Something about mapping");
         Post p2 = new Post(u1, "Something else");
         Post p3 = new Post(u1, "Something more");
-
         p1.setDevice(InetAddress.getLocalHost());
-
         p2.setTags(new HashSet<String>(Arrays.asList("important", "keeper")));
-
         m.save(p1);
         m.save(p2);
         m.save(p3);
-
         // Creates the accessor proxy defined above
         PostAccessor postAccessor = manager.createAccessor(PostAccessor.class);
-
         // Note that getOne is really the same than m.get(), it's just there
         // for demonstration sake.
         Post p = postAccessor.getOne(p1.getUserId(), p1.getPostId());
         assertEquals(p, p1);
-
         Result<Post> r = postAccessor.getAllAsync(p1.getUserId()).get();
         assertEquals(r.one(), p1);
         assertEquals(r.one(), p2);
         assertEquals(r.one(), p3);
         assertTrue(r.isExhausted());
-
         // No argument call
         r = postAccessor.getAll();
         assertEquals(r.one(), p1);
         assertEquals(r.one(), p2);
         assertEquals(r.one(), p3);
         assertTrue(r.isExhausted());
-
         BatchStatement batch = new BatchStatement();
         batch.add(postAccessor.updateContentQuery("Something different", p1.getUserId(), p1.getPostId()));
         batch.add(postAccessor.updateContentQuery("A different something", p2.getUserId(), p2.getPostId()));
         manager.getSession().execute(batch);
-
         Post p1New = m.get(p1.getUserId(), p1.getPostId());
         assertEquals(p1New.getContent(), "Something different");
         Post p2New = m.get(p2.getUserId(), p2.getPostId());
         assertEquals(p2New.getContent(), "A different something");
-
         m.delete(p1);
         m.delete(p2);
-
         // Check delete by primary key too
         m.delete(p3.getUserId(), p3.getPostId());
-
         assertTrue(postAccessor.getAllAsync(u1.getUserId()).get().isExhausted());
-
     }
 
     @Test(groups = "short")
     public void should_map_objects_from_partial_queries() throws Exception {
         MappingManager manager = new MappingManager(session());
-
         Mapper<Post> m = manager.mapper(Post.class);
-
         // Insert a few posts
         User u1 = new User("Paul", "paul@gmail.com");
         Post p1 = new Post(u1, "Something about mapping");
         Post p2 = new Post(u1, "Something else");
         Post p3 = new Post(u1, "Something more");
-
         p1.setDevice(InetAddress.getLocalHost());
         p2.setTags(new HashSet<String>(Arrays.asList("important", "keeper")));
-
         m.save(p1);
         m.save(p2);
         m.save(p3);
-
         // Retrieve posts with a projection query that only retrieves some of the fields
         ResultSet rs = session().execute("select user_id, post_id, title from posts where user_id = " + u1.getUserId());
-
         Result<Post> result = m.map(rs);
         for (Post post : result) {
             assertThat(post.getUserId()).isEqualTo(u1.getUserId());
             assertThat(post.getPostId()).isNotNull();
             assertThat(post.getTitle()).isNotNull();
-
             assertThat(post.getDevice()).isNull();
             assertThat(post.getTags()).isNull();
         }
-
         // cleanup
         session().execute("delete from posts where user_id = " + u1.getUserId());
     }
@@ -409,9 +372,7 @@ public class MapperTest extends CCMTestsSupport {
     @Test(groups = "short")
     public void should_return_table_metadata() throws Exception {
         MappingManager manager = new MappingManager(session());
-
         Mapper<Post> m = manager.mapper(Post.class);
-
         assertThat(m.getTableMetadata()).isNotNull();
         assertThat(m.getTableMetadata().getName()).isEqualTo("posts");
         assertThat(m.getTableMetadata().getPartitionKey()).hasSize(1);
@@ -420,11 +381,9 @@ public class MapperTest extends CCMTestsSupport {
     @Test(groups = "short")
     public void should_not_initialize_session_when_protocol_version_provided() {
         Session newSession = cluster().newSession();
-
         // Ensures that a Session is not initialized when a protocol version is provided.
         MappingManager manager = new MappingManager(newSession, ProtocolVersion.V1);
         assertThat(newSession.getState().getConnectedHosts()).hasSize(0);
-
         // Session should be initialized on first query.
         newSession.execute("USE " + keyspace);
         assertThat(newSession.getState().getConnectedHosts()).hasSize(1);
@@ -439,7 +398,7 @@ public class MapperTest extends CCMTestsSupport {
      * @test_category object_mapper
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void should_flag_statement_as_idempotent() {
         MappingManager manager = new MappingManager(session());
         PostAccessor post = manager.createAccessor(PostAccessor.class);
@@ -456,7 +415,7 @@ public class MapperTest extends CCMTestsSupport {
      * @test_category object_mapper
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void should_flag_statement_as_non_idempotent() {
         MappingManager manager = new MappingManager(session());
         PostAccessor post = manager.createAccessor(PostAccessor.class);
@@ -473,7 +432,7 @@ public class MapperTest extends CCMTestsSupport {
      * @test_category object_mapper
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void should_flag_statement_with_null_idempotence() {
         MappingManager manager = new MappingManager(session());
         PostAccessor post = manager.createAccessor(PostAccessor.class);
@@ -489,7 +448,7 @@ public class MapperTest extends CCMTestsSupport {
      * @test_category object_mapper
      */
     @Test(groups = "short")
-    @CassandraVersion(major = 2.0)
+    @CassandraVersion("2.0.0")
     public void should_flag_all_mapper_generated_statements_as_idempotent() {
         MappingManager manager = new MappingManager(session());
         Mapper<User> mapper = manager.mapper(User.class);
@@ -501,7 +460,6 @@ public class MapperTest extends CCMTestsSupport {
         Statement deleteQuery = mapper.deleteQuery(u.getUserId());
         assertThat(saveQuery.isIdempotent()).isTrue();
     }
-
 
     @Table(name = "users")
     public static class UserUnknownColumn {
@@ -540,7 +498,7 @@ public class MapperTest extends CCMTestsSupport {
      * @jira_ticket JAVA-1126
      * @test_category object_mapper
      */
-    @Test(groups = "short", expectedExceptions = {IllegalArgumentException.class})
+    @Test(groups = "short", expectedExceptions = { IllegalArgumentException.class })
     public void should_fail_to_create_mapper_if_class_has_column_not_in_table() {
         MappingManager manager = new MappingManager(session());
         manager.mapper(UserUnknownColumn.class);
@@ -548,6 +506,7 @@ public class MapperTest extends CCMTestsSupport {
 
     @Table(name = "nonexistent")
     public static class NonExistentTable {
+
         public String name;
 
         public void setName(String name) {
@@ -566,7 +525,7 @@ public class MapperTest extends CCMTestsSupport {
      * @jira_ticket JAVA-1126
      * @test_category object_mapper
      */
-    @Test(groups = "short", expectedExceptions = {IllegalArgumentException.class})
+    @Test(groups = "short", expectedExceptions = { IllegalArgumentException.class })
     public void should_fail_to_create_mapper_if_table_does_not_exist() {
         MappingManager manager = new MappingManager(session());
         manager.mapper(NonExistentTable.class);

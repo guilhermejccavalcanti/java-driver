@@ -12,7 +12,11 @@ package name:
 <dependency>
   <groupId>com.datastax.cassandra</groupId>
   <artifactId>cassandra-driver-core</artifactId>
+<<<<<<< HEAD
   <version>3.1.4</version>
+=======
+  <version>3.0.7</version>
+>>>>>>> a7044d5a5
   <classifier>shaded</classifier>
   <!-- Because the shaded JAR uses the original POM, you still need
        to exclude this dependency explicitly: -->
@@ -32,7 +36,11 @@ non-shaded JAR:
 <dependency>
   <groupId>com.datastax.cassandra</groupId>
   <artifactId>cassandra-driver-core</artifactId>
+<<<<<<< HEAD
   <version>3.1.4</version>
+=======
+  <version>3.0.7</version>
+>>>>>>> a7044d5a5
   <classifier>shaded</classifier>
   <exclusions>
     <exclusion>
@@ -44,7 +52,11 @@ non-shaded JAR:
 <dependency>
   <groupId>com.datastax.cassandra</groupId>
   <artifactId>cassandra-driver-mapping</artifactId>
+<<<<<<< HEAD
   <version>3.1.4</version>
+=======
+  <version>3.0.7</version>
+>>>>>>> a7044d5a5
   <exclusions>
     <exclusion>
       <groupId>com.datastax.cassandra</groupId>

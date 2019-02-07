@@ -28,36 +28,31 @@ import org.assertj.core.data.MapEntry;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.util.*;
-
 import static com.datastax.driver.core.CreateCCM.TestMode.PER_METHOD;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.testng.Assert.*;
 
-@SuppressWarnings({"unused", "WeakerAccess"})
-@CassandraVersion(major = 2.1)
+@SuppressWarnings({ "unused", "WeakerAccess" })
+@CassandraVersion("2.1.0")
 @CreateCCM(PER_METHOD)
 public class MapperUDTTest extends CCMTestsSupport {
 
     @BeforeMethod(groups = "short")
     public void createObjects() {
-        execute("CREATE TYPE address (street text, city text, \"ZIP_code\" int, phones set<text>)",
-                "CREATE TABLE users (user_id uuid PRIMARY KEY, name text, mainaddress frozen<address>, other_addresses map<text,frozen<address>>)");
+        execute("CREATE TYPE address (street text, city text, \"ZIP_code\" int, phones set<text>)", "CREATE TABLE users (user_id uuid PRIMARY KEY, name text, mainaddress frozen<address>, other_addresses map<text,frozen<address>>)");
     }
 
     @AfterMethod(groups = "short")
     public void deleteObjects() {
-        execute("DROP TABLE IF EXISTS users",
-                "DROP TYPE  IF EXISTS address");
+        execute("DROP TABLE IF EXISTS users", "DROP TYPE  IF EXISTS address");
     }
 
-    @Table(name = "users",
-            readConsistency = "QUORUM",
-            writeConsistency = "QUORUM")
+    @Table(name = "users", readConsistency = "QUORUM", writeConsistency = "QUORUM")
     public static class User {
+
         @PartitionKey
         @Column(name = "user_id")
         private UUID userId;
@@ -123,10 +118,7 @@ public class MapperUDTTest extends CCMTestsSupport {
                 return true;
             if (other instanceof User) {
                 User that = (User) other;
-                return Objects.equal(this.userId, that.userId) &&
-                        Objects.equal(this.name, that.name) &&
-                        Objects.equal(this.mainAddress, that.mainAddress) &&
-                        Objects.equal(this.otherAddresses, that.otherAddresses);
+                return Objects.equal(this.userId, that.userId) && Objects.equal(this.name, that.name) && Objects.equal(this.mainAddress, that.mainAddress) && Objects.equal(this.otherAddresses, that.otherAddresses);
             }
             return false;
         }
@@ -138,12 +130,7 @@ public class MapperUDTTest extends CCMTestsSupport {
 
         @Override
         public String toString() {
-            return Objects.toStringHelper(User.class)
-                    .add("userId", userId)
-                    .add("name", name)
-                    .add("mainAddress", mainAddress)
-                    .add("otherAddresses", otherAddresses)
-                    .toString();
+            return Objects.toStringHelper(User.class).add("userId", userId).add("name", name).add("mainAddress", mainAddress).add("otherAddresses", otherAddresses).toString();
         }
     }
 
@@ -153,7 +140,8 @@ public class MapperUDTTest extends CCMTestsSupport {
         // Dummy constant to test that static fields are properly ignored
         public static final int FOO = 1;
 
-        @Field // not strictly required, but we want to check that the annotation works without a name
+        // not strictly required, but we want to check that the annotation works without a name
+        @Field
         private String city;
 
         // Declared out of order compared to the UDT definition, to make sure that we serialize fields in the correct order (JAVA-884)
@@ -213,10 +201,7 @@ public class MapperUDTTest extends CCMTestsSupport {
                 return true;
             if (other instanceof Address) {
                 Address that = (Address) other;
-                return Objects.equal(this.street, that.street) &&
-                        Objects.equal(this.city, that.city) &&
-                        Objects.equal(this.zipCode, that.zipCode) &&
-                        Objects.equal(this.phones, that.phones);
+                return Objects.equal(this.street, that.street) && Objects.equal(this.city, that.city) && Objects.equal(this.zipCode, that.zipCode) && Objects.equal(this.phones, that.phones);
             }
             return false;
         }
@@ -228,17 +213,13 @@ public class MapperUDTTest extends CCMTestsSupport {
 
         @Override
         public String toString() {
-            return Objects.toStringHelper(Address.class)
-                    .add("street", street)
-                    .add("city", city)
-                    .add("zip", zipCode)
-                    .add("phones", phones)
-                    .toString();
+            return Objects.toStringHelper(Address.class).add("street", street).add("city", city).add("zip", zipCode).add("phones", phones).toString();
         }
     }
 
     @Accessor
     public interface UserAccessor {
+
         @Query("SELECT * FROM users WHERE user_id=:userId")
         User getOne(@Param("userId") UUID userId);
 
@@ -255,59 +236,46 @@ public class MapperUDTTest extends CCMTestsSupport {
     @Test(groups = "short")
     public void testSimpleEntity() throws Exception {
         Mapper<User> m = new MappingManager(session()).mapper(User.class);
-
         User u1 = new User("Paul", new Address("12 4th Street", "Springfield", 12345, "12341343", "435423245"));
         u1.addOtherAddress("work", new Address("5 Main Street", "Springfield", 12345, "23431342"));
         m.save(u1);
-
         assertEquals(m.get(u1.getUserId()), u1);
     }
 
     @Test(groups = "short")
     public void should_handle_null_UDT_value() throws Exception {
         Mapper<User> m = new MappingManager(session()).mapper(User.class);
-
         User u1 = new User("Paul", null);
         m.save(u1);
-
         assertNull(m.get(u1.getUserId()).getMainAddress());
     }
 
     @Test(groups = "short")
     public void testAccessor() throws Exception {
         MappingManager manager = new MappingManager(session());
-
         Mapper<User> m = new MappingManager(session()).mapper(User.class);
         User u1 = new User("Paul", new Address("12 4th Street", "Springfield", 12345, "12341343", "435423245"));
         m.save(u1);
-
         UserAccessor userAccessor = manager.createAccessor(UserAccessor.class);
-
         Address workAddress = new Address("5 Main Street", "Springfield", 12345, "23431342");
         userAccessor.addAddress(u1.getUserId(), "work", workAddress);
-
         User u2 = userAccessor.getOne(u1.getUserId());
         assertEquals(workAddress, u2.getOtherAddresses().get("work"));
-
         // Adding a null value should remove it from the list.
         userAccessor.addAddress(u1.getUserId(), "work", null);
         User u3 = userAccessor.getOne(u1.getUserId());
         assertThat(u3.getOtherAddresses()).doesNotContainKey("work");
-
         // Add a bunch of other addresses
         Map<String, Address> otherAddresses = Maps.newHashMap();
         otherAddresses.put("work", workAddress);
         otherAddresses.put("cabin", new Address("42 Middle of Nowhere", "Lake of the Woods", 49553, "8675309"));
-
         userAccessor.setOtherAddresses(u1.getUserId(), otherAddresses);
         User u4 = userAccessor.getOne(u1.getUserId());
         assertThat(u4.getOtherAddresses()).isEqualTo(otherAddresses);
-
         // Nullify other addresses
         userAccessor.setOtherAddresses(u1.getUserId(), null);
         User u5 = userAccessor.getOne(u1.getUserId());
         assertThat(u5.getOtherAddresses()).isEmpty();
-
         // No argument call
         Result<User> u = userAccessor.getAll();
         assertEquals(u.one(), u5);
@@ -317,64 +285,46 @@ public class MapperUDTTest extends CCMTestsSupport {
     @Test(groups = "short")
     public void should_be_able_to_use_udtCodec_standalone() {
         // Create a separate Cluster/Session to start with a CodecRegistry from scratch (so not already registered).
-        Cluster cluster = register(Cluster.builder()
-                .addContactPoints(getContactPoints())
-                .withPort(ccm().getBinaryPort())
-                .build());
+        Cluster cluster = register(Cluster.builder().addContactPoints(getContactPoints()).withPort(ccm().getBinaryPort()).build());
         CodecRegistry registry = cluster.getConfiguration().getCodecRegistry();
         Session session = cluster.connect(keyspace);
-
         UUID userId = UUIDs.random();
-
         // Create a user.
-        session.execute("update users SET other_addresses['condo']={street: '101 Ocean Ln', city: 'Jacksonville, FL', \"ZIP_code\": 89898, phones: {'8675309'}} " +
-                " WHERE user_id=" + TypeCodec.uuid().format(userId));
-        session.execute("update users SET mainaddress={street: '42 Middle of Nowhere', city: 'Lake of the Woods', \"ZIP_code\": 49553, phones: {'8675039'}} " +
-                " WHERE user_Id=" + TypeCodec.uuid().format(userId));
-
+        session.execute("update users SET other_addresses['condo']={street: '101 Ocean Ln', city: 'Jacksonville, FL', \"ZIP_code\": 89898, phones: {'8675309'}} " + " WHERE user_id=" + TypeCodec.uuid().format(userId));
+        session.execute("update users SET mainaddress={street: '42 Middle of Nowhere', city: 'Lake of the Woods', \"ZIP_code\": 49553, phones: {'8675039'}} " + " WHERE user_Id=" + TypeCodec.uuid().format(userId));
         // Get the user.
         Row row = session.execute("select * from users where user_id=?", userId).one();
-
         UDTValue udtValue = row.getUDTValue("mainaddress");
         assertThat(udtValue.getString("street")).isEqualTo("42 Middle of Nowhere");
-
         Object udtObject = row.getObject("mainaddress");
         assertThat(udtObject).isEqualTo(udtValue);
-
         // There shouldn't be a codec for address.
         try {
             assertThat(registry.codecFor(udtValue.getType(), Address.class));
             fail("Didn't expect to find codec for udtType <-> Address");
         } catch (CodecNotFoundException e) {
-            // expected.
         }
-
         // Expect a this_udt <-> UDTValue codec to exist.  This is a pretty safe bet or else we wouldn't get
         // this value back.
         TypeCodec<UDTValue> udtCodec = registry.codecFor(udtValue.getType());
         assertThat(udtCodec.getCqlType()).isEqualTo(udtValue.getType());
         assertThat(udtCodec.getJavaType().getRawType()).isEqualTo(UDTValue.class);
-
         // Retrieve codec for Address, if it can be mapped it will be created, if already registered it'll be used.
         TypeCodec<Address> codec = new MappingManager(session).udtCodec(Address.class);
-
         // The codec should be registered after we call udtCodec.
         assertThat(registry.codecFor(udtValue.getType(), Address.class)).isEqualTo(codec);
-
         // Should be able to retrieve as an Address.
         Address mainAddress = row.get("mainaddress", Address.class);
         assertThat(mainAddress.getCity()).isEqualTo("Lake of the Woods");
         assertThat(mainAddress.getStreet()).isEqualTo("42 Middle of Nowhere");
         assertThat(mainAddress.getZipCode()).isEqualTo(49553);
         assertThat(mainAddress.getPhones()).containsExactly("8675039");
-
         // Should be able to retrieve within a Map.
         Address expectedOtherAddress = new Address();
         expectedOtherAddress.setStreet("101 Ocean Ln");
         expectedOtherAddress.setCity("Jacksonville, FL");
         expectedOtherAddress.setZipCode(89898);
         expectedOtherAddress.setPhones(Collections.singleton("8675309"));
-
         Map<String, Address> otherAddresses = row.getMap("other_addresses", String.class, Address.class);
         assertThat(otherAddresses).containsOnly(MapEntry.entry("condo", expectedOtherAddress));
     }
@@ -400,7 +350,6 @@ public class MapperUDTTest extends CCMTestsSupport {
         m.save(expected);
         User retrieved = m.get(expected.getUserId());
         assertThat(retrieved).isEqualTo(expected);
-
         // Mapper should be recreated since table changed.
         Mapper<User> m2 = manager.mapper(User.class);
         assertThat(m2).isNotSameAs(m);
@@ -428,11 +377,9 @@ public class MapperUDTTest extends CCMTestsSupport {
         m.save(expected);
         User retrieved = m.get(expected.getUserId());
         assertThat(retrieved).isEqualTo(expected);
-
         // Codec should be recreated when requested since UDT and thus the table changed.
         Mapper m2 = manager.mapper(User.class);
         assertThat(m2).isNotSameAs(m);
-
         // Codec should be recreated when requested since UDT changed.
         TypeCodec c2 = manager.udtCodec(Address.class);
         assertThat(c2).isNotSameAs(c);
@@ -498,14 +445,12 @@ public class MapperUDTTest extends CCMTestsSupport {
             mapper.save(user);
             fail("Expected InvalidQueryException");
         } catch (InvalidQueryException e) {
-            // Error message varies by C* version.
             assertThat(e.getMessage()).isIn("Unknown identifier mainaddress", "Undefined column name mainaddress");
         }
         try {
             mapper.get(user.getUserId());
             fail("Expected InvalidQueryException");
         } catch (InvalidQueryException e) {
-            // Error message varies by C* version.
             assertThat(e.getMessage()).isIn("Undefined name mainaddress in selection clause", "Undefined column name mainaddress");
         }
         // trying to use a new mapper
@@ -541,7 +486,6 @@ public class MapperUDTTest extends CCMTestsSupport {
             mapper.save(user);
             fail("Expected CodecNotFoundException");
         } catch (CodecNotFoundException e) {
-            // ok, codec could not be created
         }
         // insert manually to be able to test retrieval
         session().execute("INSERT INTO users (user_id, name, mainaddress) VALUES (?, 'Paul', { street : '12 4th Street', zip_code : 12345 })", user.getUserId());
@@ -549,7 +493,6 @@ public class MapperUDTTest extends CCMTestsSupport {
             mapper.get(user.getUserId());
             fail("Expected CodecNotFoundException");
         } catch (CodecNotFoundException e) {
-            // ok, codec could not be created
         }
         // trying to use a new mapper
         try {
@@ -639,6 +582,7 @@ public class MapperUDTTest extends CCMTestsSupport {
 
     @UDT(name = "nonexistent")
     public static class NonExistentUDT {
+
         public String name;
 
         public void setName(String name) {
@@ -665,6 +609,7 @@ public class MapperUDTTest extends CCMTestsSupport {
 
     @Table(name = "users")
     public static class UserWithAddressUnknownField {
+
         @PartitionKey
         @Column(name = "user_id")
         private UUID userId;
@@ -741,21 +686,14 @@ public class MapperUDTTest extends CCMTestsSupport {
     public void should_format_mapped_udt() throws Exception {
         MappingManager manager = new MappingManager(session());
         UUID uuid = UUIDs.random();
-        BuiltStatement update =
-                update("users")
-                        .with(set("mainaddress", new Address("12 4th Street", "Springfield", 12345, "12341343", "435423245")))
-                        .where(eq("user_id", uuid));
+        BuiltStatement update = update("users").with(set("mainaddress", new Address("12 4th Street", "Springfield", 12345, "12341343", "435423245"))).where(eq("user_id", uuid));
         CodecRegistry codecRegistry = cluster().getConfiguration().getCodecRegistry();
         codecRegistry.register(manager.udtCodec(Address.class));
         String queryString = update.getQueryString(codecRegistry);
-        assertThat(queryString)
-                .isEqualTo("UPDATE users SET mainaddress=? WHERE user_id=?;");
+        assertThat(queryString).isEqualTo("UPDATE users SET mainaddress=? WHERE user_id=?;");
         update.setForceNoValues(true);
         queryString = update.getQueryString(codecRegistry);
-        assertThat(queryString).isEqualTo(
-                "UPDATE users " +
-                        "SET mainaddress={street:'12 4th Street',city:'Springfield',\"ZIP_code\":12345,phones:{'435423245','12341343'}} " +
-                        "WHERE user_id=" + uuid + ";");
+        assertThat(queryString).isEqualTo("UPDATE users " + "SET mainaddress={street:'12 4th Street',city:'Springfield',\"ZIP_code\":12345,phones:{'435423245','12341343'}} " + "WHERE user_id=" + uuid + ";");
         // check that the query string is valid
         session().execute(queryString);
     }
@@ -773,5 +711,4 @@ public class MapperUDTTest extends CCMTestsSupport {
         Address actual = codec.parse("{street:'12 4th Street',city:'Springfield',\"ZIP_code\":12345,phones:{'435423245','12341343'}}");
         assertThat(actual).isEqualTo(new Address("12 4th Street", "Springfield", 12345, "12341343", "435423245"));
     }
-
 }
